@@ -1,0 +1,17 @@
+# The fortran modules provided by this target.
+provides
+ mod_boundary
+ mod_cluster
+ mod_common
+ mod_dislocation
+ mod_dynamo
+ mod_file
+ mod_global
+ mod_grain
+ mod_interstitial
+ mod_main
+ mod_material
+ mod_output
+ mod_parallel
+ mod_poten
+ mod_timming
