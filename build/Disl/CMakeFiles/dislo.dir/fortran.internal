@@ -1,4 +1,0 @@
-# The fortran modules provided by this target.
-provides
- mod_dd_slip
- mod_disl_files
