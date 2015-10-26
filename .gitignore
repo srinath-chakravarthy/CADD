@@ -16,6 +16,8 @@ build/
 t3d.bmf*
 perf.data*
 *.orig
+*.vtk
+*.cfg
 
 # documentation aux-files.
 *.aux
