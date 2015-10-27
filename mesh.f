@@ -49,7 +49,8 @@ c build a blunt *center, crack
       double precision xslip_start, xslip_end, yslip_start, yslip_end
       double precision slip_angle(3), xxx1, yyy1, dxslip, dyslip
       double precision xslp1, xendslp1, ZBQLU01, rr1, lnuc, sn, smax
-      integer*4 timeArray(3) 
+      integer*4 timeArray(3)
+      double precision :: aangle
 
 C! VBS added this to read in tolerances
       common/elemconv/numelold
@@ -59,7 +60,7 @@ cc--JS: Specially for crack asymmetry
       integer logic
       character*80 filename
 cc--JS: dwfactor 2 for asym and 1 for sym      
-      dwfactorx=2
+      dwfactorx=1
       dwfactory = 1
 cc
       write(*,*)
@@ -136,7 +137,7 @@ c
          xx=i*dx
          if (abs(xx).gt.XMax(nXRegions)) go to 10
 	 
-         do 20 j=-numy,numy
+         do 20 j=-numy,0
 	 
             yy=j*dy
             if (abs(yy).gt.YMax(nYRegions)) go to 20
@@ -185,20 +186,26 @@ c$$$            endif
 ! FOR NOW ONLY, assign nodes to the crack faces. Leo mentions
 ! this is a hack. But this appears legitimate.
 !     Add back nodes according to desired crack shape
-            if(j.eq.0.and.x(1,numNodes).lt.-0.01*dx) then
-              numNodes = numNodes+2
-              x(1,numNodes-1) = xx+mod(j,ndxdy)*dxdy
-!              x(2,numNodes-1) = yy+2*dy
-              x(2,numNodes-1) = yy+dy
-              x(1,numNodes) = xx+mod(j,ndxdy)*dxdy
-!              x(2,numNodes) = yy-2*dy 
-              x(2,numNodes) = yy 
-!              print *, i, x(1, numNodes)
-              if(i.eq.-320) then
-                countLast = numNodes-1
-              endif
-            endif
+c$$$  *************************************************           
+c$$$  Chakravarthy mods for no crack
+c$$$  *************************************************                       
+c$$$            if(j.eq.0.and.x(1,numNodes).lt.-0.01*dx) then
+c$$$              numNodes = numNodes+2
+c$$$              x(1,numNodes-1) = xx+mod(j,ndxdy)*dxdy
+c$$$!              x(2,numNodes-1) = yy+2*dy
+c$$$              x(2,numNodes-1) = yy+dy
+c$$$              x(1,numNodes) = xx+mod(j,ndxdy)*dxdy
+c$$$!              x(2,numNodes) = yy-2*dy 
+c$$$              x(2,numNodes) = yy 
+c$$$!              print *, i, x(1, numNodes)
+c$$$              if(i.eq.-320) then
+c$$$                countLast = numNodes-1
+c$$$              endif
+c$$$            endif
 C Qu modification ends
+c$$$  *************************************************           
+c$$$  End Chakravarthy mods for no crack
+c$$$  *************************************************                       
 
  20      continue
  10   continue
@@ -322,47 +329,12 @@ c     hard coded for 1 grain
 
       nce=0
       nodeStart=0
-
-      print*, 'Detecting the lower crack ledge'
-!     FIND THE LOWER CRACK LEDGE
-      do i =1, numnp
-! Qu modification to remove extra layers of atoms around crack faces
-         if(dabs(x(2,i)).lt.tol.and.x(1,i).lt.0.1*dx) then
-!         if(dabs(x(2,i)+dy).lt.tol.and.x(1,i).lt.0.1*dx) then
-!        if(dabs(x(2,i)+2*dy).lt.tol.and.x(1,i).lt.-dx) then
-! Qu modification ends
-!        if(dabs(x(2,i)).lt.tol.and.x(1,i).lt.XMax(1)-4*rcutmesh) then
-!        if(dabs(x(2,i)).lt.tol.and.x(1,i).lt.-XMax(1)+2*dx) then
-        nce=nce+1
-        if (nce.gt.NCEMAX) then
-           if(nce.gt.NCEMAX) call IncreaseElist(100)
-        endif
-        elist(1,nce)=i
-        endif
-      enddo
-
-! sort the lower ledge so that is goes CW (from right to left).
-      allocate(nodeAngle(numnp))
-      nodeAngle=0.
-      do i=1,nce
-         inode=elist(1,i)
-         nodeAngle(inode)= datan2(dy,x(1,inode))
-      enddo
-      nsort=nce
-      call qsortr(nsort,elist(1,1),nodeAngle,1,1,1.d0)
-      deallocate(nodeAngle)
-      
-! remove the last node from the list
-Cc!!! Bill's changes!!!!
-      nce=nce-1
-      nodeStart = nce
-
       
 !     find all external boundary nodes
       simulationCell%xmin = simulationCell%xmin + 10.d0
       simulationCell%xmax = simulationCell%xmax - 10.d0
       simulationCell%ymin = simulationCell%ymin + 10.d0
-      simulationCell%ymax = simulationCell%ymax - 10.d0
+      simulationCell%ymax = simulationCell%ymax - 0.1d0
 
       print*, 'Detecting the outer cell boundary', numnp
       print *,  simulationCell%xmin,  simulationCell%xmax
@@ -379,7 +351,7 @@ Cc!!! Bill's changes!!!!
 !     store all boundary points, but put crack faces at the beginning of
 !     elist.  While you are at it, apply the b.c.s
 
-         if (top.or.bot.or.right.or.left) then
+         if (bot.or.right.or.left) then
             nce=nce+1
             if (nce.gt.NCEMAX) then
                if(nce.gt.NCEMAX) call IncreaseElist(100)
@@ -387,7 +359,8 @@ Cc!!! Bill's changes!!!!
             elist(1,nce)=i
 
 ! apply the b.c's
-            if (top.or.bot.or.right.or.left) then
+            if (bot.or.right.or.left) then
+c$$$            if (bot) then 
                id(1,i)=1
                id(2,i)=1
                print *, 'BCs on  node',i 
@@ -396,101 +369,69 @@ Cc!!! Bill's changes!!!!
          endif
  77   continue
 
-
-! sort the boundary so that is goes CW.
+! sort the boundary so that is goes CCW.
       allocate(nodeAngle(numnp))
       nodeAngle=0.
       do i=nodeStart+1,nce
          inode=elist(1,i)
-! YET ANOTHER HACK
-         nodeAngle(inode)=datan2(x(2,inode)-tol,x(1,inode))
+!     YET ANOTHER HACK
+         nodeAngle(inode)=datan2(x(2,inode)-1.0d0,x(1,inode))
       enddo
       nsort=nce-nodeStart
       call qsortr(nsort,elist(1,nodeStart+1),nodeAngle,1,1,1.d0)
       deallocate(nodeAngle)
 
-! remove the last node from the list
-      nce=nce-1
+      nce = nce -1
       nodeStart = nce
-
-
-!     FIND THE UPPER CRACK LEDGE
-      print*, 'Detecting the upper crack ledge'
-      do i =1, numnp
-! Qu modification to remove extra layers of atoms around crack faces
-        if(dabs(x(2,i)-1.0*dy).lt.tol.and.x(1,i).lt.0.1*dx) then
-!        if(dabs(x(2,i)-2.0*dy).lt.tol.and.x(1,i).lt.0.1*dx) then
-!        if(dabs(x(2,i)-dy).lt.tol.and.x(1,i).lt.XMax(1)-4*rcutmesh) then
-!        if(dabs(x(2,i)-dy).lt.tol.and.x(1,i).lt.-XMax(1)+2*dx) then
-        nce=nce+1
-        if (nce.gt.NCEMAX) then
-           if(nce.gt.NCEMAX) call IncreaseElist(100)
-        endif
-        elist(1,nce)=i
-        endif
-      enddo
+!     Now add top boundary
+      do i=1,numnp
+         top=(x(2,i) .gt. simulationCell%ymax)
+         if (top) then 
+            nce = nce + 1
+            if (nce.gt.NCEMAX) then
+               if(nce.gt.NCEMAX) call IncreaseElist(100)
+            endif
+            elist(1,nce)=i
+         end if
+c$$$         if (top) then
+c$$$            id(i,1) = 1
+c$$$            id(i,2) = 1
+c$$$         end if
+      end do
 
 ! sort the upper ledge so that is goes CW (from left to right).
       allocate(nodeAngle(numnp))
       nodeAngle=0.
       do i=nodeStart+1,nce
          inode=elist(1,i)
-         nodeAngle(inode)= -datan2(x(2,inode),x(1,inode))
+         if (x(2,inode) < tol) then
+            nodeAngle(inode) = -3.14159265358979323846*x(1,inode)
+     $           /100.0d0
+         else
+            nodeAngle(inode)= datan2(x(2,inode)-tol,x(1,inode))     
+         endif
+
+
       enddo
       nsort=nce-nodeStart
       call qsortr(nsort,elist(1,nodeStart+1),nodeAngle,1,1,1.d0)
       deallocate(nodeAngle)
-
+      nce = nce-1
+      
 ! finish defining the boundary
       do i=1,nce-1
+         inode = elist(1,i)
          elist(2,i)=elist(1,i+1)
+         aangle=-datan2(x(2,inode),x(1,inode))
+         write(*,'(A7,3I7,1X,3E15.7)') 'Elist ', i, elist(1,i), elist(2
+     $        ,i), x(1,inode), x(2,inode), aangle
       enddo
       elist(2,nce)=elist(1,1)
-      ncb=nce
+      print *, 'Elist ', nce, elist(1,nce), elist(2,nce)
 
-c$$$      do i=1,numnp
-c$$$        if(dabs((x(2,i))-dy).lt.tol.and.x(1,i).gt.-dx
-c$$$     &     .and.x(1,i).lt.0.5*dx)then
-c$$$          nce=nce+1
-c$$$          if(nce.gt.NCEMAX) then
-c$$$           if(nce.gt.NCEMAX) call IncreaseElist(100)
-c$$$          endif
-c$$$
-c$$$          elist(1,nce)=i
-c$$$          ncb=nce
-c$$$          elist(2,nce)=elist(1,1)
-c$$$          elist(2,nce-1)=elist(1,nce)
-c$$$        endif
-c$$$      enddo
-c$$$      do i=1,numnp
-c$$$        if(dabs(x(2,i)).lt.tol.and.x(1,i).gt.-0.5*dx
-c$$$     &     .and.x(1,i).lt.0.5*dx)then
-c$$$          nce=nce+1
-c$$$          if(nce.gt.NCEMAX) then
-c$$$           if(nce.gt.NCEMAX) call IncreaseElist(100)
-c$$$          endif
-c$$$
-c$$$          elist(1,nce)=i
-c$$$          ncb=nce
-c$$$          elist(2,nce)=elist(1,1)
-c$$$          elist(2,nce-1)=elist(1,nce)
-c$$$        endif
-c$$$      enddo
-c$$$
-c$$$      do i=1,numnp
-c$$$        if(dabs((x(2,i))+dy).lt.tol.and.x(1,i).gt.-dx
-c$$$     &     .and.x(1,i).lt.tol)then
-c$$$          nce=nce+1
-c$$$          if(nce.gt.NCEMAX) then
-c$$$           if(nce.gt.NCEMAX) call IncreaseElist(100)
-c$$$          endif
-c$$$          
-c$$$          elist(1,nce)=i
-c$$$          ncb=nce
-c$$$          elist(2,nce)=elist(1,1)
-c$$$          elist(2,nce-1)=elist(1,nce)
-c$$$        endif
-c$$$      enddo
+      print *, 'No. of outer boundary edges = ', nce
+
+      ncb=nce
 
 c     Triangulate, sets all elements to material 1 for this mesh
       print*, 'Triangulating'
@@ -574,6 +515,7 @@ c     Triangulate, sets all elements to material 1 for this mesh
       numy=int(YMax(2)/dy)+1
       dwnumx=int(XMax(2)/dwfactorx/dx)+1
       dwnumy=int(YMax(2)/dwfactory/dy)+1
+      dwnumy = 0
       do i=-dwnumx,numx
          xx=i*dx
          do j=-numy,dwnumy
@@ -689,10 +631,10 @@ C------- insert H atoms in the crack tip region
 !     region.
 
 
-	useDetectionBand = .true.
+	useDetectionBand = .false.
 	if (.not. useDetectionBand) then
 		ndbpoly = 0
-		return
+		goto 1110
 	endif
 
 	print*, 'Using a detection band'
@@ -710,19 +652,19 @@ C------- insert H atoms in the crack tip region
 	nr4=int((abs(detectionBand%ymax)-minDb)/dy)+1
 
 	ndbpoly=max(nr1,nr2,nr3,nr4)+1
-c$$$        ndbpoly = 4
+        ndbpoly = 2
         print *, 'Detection band', nr1, nr2, nr3, nr4, ndbpoly
         call allocate_db
  
       do i=1,ndbpoly
-         detectionBand%xmin = atomRegion%xmin + rcutmesh
+         detectionBand%xmin = atomRegion%xmin + rcutmesh * (i-1)*dx
 c$$$         detectionBand%xmax = atomRegion%xmax - 2.0*rcutmesh
 c$$$         detectionBand%ymin = atomRegion%ymin + 2.0*rcutmesh
 c$$$         detectionBand%ymax = atomRegion%ymax - 2.0*rcutmesh
          
          detectionBand%xmax = atomRegion%xmax - rcutmesh - (i-1)*dx
          detectionBand%ymin = atomRegion%ymin + rcutmesh + (i-1)*dy
-         detectionBand%ymax = atomRegion%ymax - rcutmesh - (i-1)*dy
+         detectionBand%ymax = atomRegion%ymax - rcutmesh 
 
 c$$$
 c$$$         detectionBand%xmax = min( minDb+(i-1)*dx
@@ -770,7 +712,7 @@ c$$$     $        *, 'Detection band region', i,dbpoly(1,4,i), dbpoly(2,4,i)
 ! Qu modified detection band rings ends
       
       write(6,*) 'width of the detection band: rcutmesh = ', rcutmesh
-
+ 1110 continue
       call gen_slip_planes(simulationCell%xmin,
      & simulationCell%xmax,simulationCell%ymin,
      & simulationCell%ymax,
