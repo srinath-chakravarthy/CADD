@@ -392,6 +392,10 @@ c$$$            if (bot) then
                if(nce.gt.NCEMAX) call IncreaseElist(100)
             endif
             elist(1,nce)=i
+            if (x(1,i) > -3.0*dx .and. x(1,i) < 3.0*dx) then
+               id(i,1) = 1
+               print *, "BC's on atom", i
+            end if
          end if
 c$$$         if (top) then
 c$$$            id(i,1) = 1

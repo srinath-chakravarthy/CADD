@@ -31,7 +31,6 @@ end
 % set precrack from 0.285 to 0.25.
  
 macros 
-precrack,,0.0
 tolerance,,1.d-6
 ddset
 ma02,ovit,atom.cfg,1,1.,1. 

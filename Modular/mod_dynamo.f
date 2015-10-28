@@ -280,8 +280,8 @@
 !.....                                                                  
 !     c--JS                                                             
          nnindx(i) = nnindx(i) + 1
-         print *, 'Atom = ', i, nnindx(i), UpdateNeigh(i), newlst, j,
-     $        IsRelaxed(j), rdyn(j)
+c$$$         print *, 'Atom = ', i, nnindx(i), UpdateNeigh(i), newlst, j,
+c$$$     $        IsRelaxed(j), rdyn(j)
          nnlst(i,nnindx(i)) = j 
 !.....                                                                  
 !     determine which pairs are separated by less than rcut             

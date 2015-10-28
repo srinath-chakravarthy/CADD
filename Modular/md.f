@@ -870,7 +870,7 @@ C	Find the kinetic energy of the surrounding atoms
 		x2 = atomCoord(1, jAtom)
 		y2 = atomCoord(2, jAtom)
 		z2 = atomCoord(3, jAtom)
-              atomMass=amass(atomSpecie(jAtom))*1.0d-24 
+		atomMass=amass(atomSpecie(jAtom))*1.0d-24 
 		dist = sqrt( (x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2)
 		do 20 j = 1, ndf
 			v = velocity(j, jAtom)
